@@ -1,6 +1,7 @@
 (ns outpace-exercise.main
   (:require [clojure.java.io :as io]
-            [outpace-exercise.ocr :as ocr])
+            [outpace-exercise.ocr :as ocr]
+            [outpace-exercise.validator :as validator])
   (:import [java.io BufferedReader])
   (:gen-class))
 
@@ -14,6 +15,17 @@
          (every? #(re-matches #"[_| ]{27}" %) should-be-data)
          (.isEmpty (first should-be-empty)))))
 
+(defn process-line
+  "Process an individual line of OCR input.  Returns a variant of the form
+  [status digits] where:
+
+  * status is one of :ok or :bad-checksum, and
+  * digits is a string representing the input that was read"
+  [line]
+  (let [digits (ocr/line->digits line)]
+    [(if (validator/valid-checksum? digits) :ok :bad-checksum)
+     (apply str digits)]))
+
 (defn process
   "Process the input from `in` and places the output in `out`.  In the case of
   an invalid input, the processing will abort an error message will be print to
@@ -23,8 +35,10 @@
     (loop [lines (partition 4 (line-seq (BufferedReader. in)))]
       (when-let [line (first lines)]
         (if (valid-input? line)
-          (do
-            (println (apply str (ocr/line->digits line)))
+          (let [[status number] (process-line line)]
+            (case status
+              :ok (println number)
+              :bad-checksum (println number "ERR"))
             (recur (next lines)))
           (binding [*out* *err*]
             (println "Invalid input:")
