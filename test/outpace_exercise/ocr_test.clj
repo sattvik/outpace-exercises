@@ -1,6 +1,10 @@
 (ns outpace-exercise.ocr-test
-  (require [clojure.test :refer [deftest is testing]]
-           [outpace-exercise.ocr :refer :all]))
+  (:require [clojure.test :refer [deftest is testing]]
+            [clojure.test.check :as tc]
+            [clojure.test.check.clojure-test :refer [defspec]]
+            [clojure.test.check.generators :as gen]
+            [clojure.test.check.properties :as prop]
+            [outpace-exercise.ocr :refer :all]))
 
 (def zero (str " _ "
                "| |"
@@ -103,3 +107,27 @@
                           "  | _| _||_||_ |_   ||_||_|"
                           "  ||_  _|  | _||_|  ||_| _|"
                           ""])))))
+
+(def line0 [" _ " "   " " _ " " _ " "   " " _ " " _ " " _ " " _ " " _ "])
+(def line1 ["| |" "  |" " _|" " _|" "|_|" "|_ " "|_ " "  |" "|_|" "|_|"])
+(def line2 ["|_|" "  |" "|_ " " _|" "  |" " _|" "|_|" "  |" "|_|" " _|"])
+
+(defn digits->line
+  "Converts a sequence of digits into a pixelated line."
+  [digits]
+  [(apply str (map line0 digits))
+   (apply str (map line1 digits))
+   (apply str (map line2 digits))
+   ""])
+
+(def digits-generator
+  "Generates vectors of digits."
+  (gen/list (gen/elements (range 10))))
+
+(def digits->line->digits
+  "A property for round-tripping a sequence of digits to a line and back to a
+  sequence of digits."
+  (prop/for-all [digits digits-generator]
+    (= digits (line->digits (digits->line digits)))))
+
+(defspec generated-test-line->digits digits->line->digits)
