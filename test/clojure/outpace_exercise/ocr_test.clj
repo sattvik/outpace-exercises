@@ -1,5 +1,6 @@
 (ns outpace-exercise.ocr-test
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [clojure.set :as set]
+            [clojure.test :refer [deftest is testing]]
             [clojure.test.check :as tc]
             [clojure.test.check.clojure-test :refer [defspec]]
             [clojure.test.check.generators :as gen]
@@ -161,20 +162,29 @@
             (gen/tuple (gen/choose 1 9)
                        (gen/shuffle [0 1 2 3 4 5 6 7 8]))))
 
+(defn smudge-digit
+  "Smudges the given digit in the line by mutating pixel.  Ensures that the
+  smudged digit isn't a different digit."
+  [line digit]
+  (let [row (int (rand 3))
+        col (+ (* 3 digit) (int (rand 3)))
+        new-line (update-in line [row]
+                            (fn [pixel-row]
+                              (str (.substring pixel-row 0 col)
+                                   (rand-nth (vec (set/difference #{\space \_ \|}
+                                                                  (hash-set (.charAt pixel-row col)))))
+                                   (.substring pixel-row (inc col)))))
+        smudge-digit (->> (take 3 new-line)
+                          (map (fn [s] (.substring s (* 3 digit) (* 3 (inc digit)))))
+                          (apply str))]
+    (if (not= \? (pixels->digit smudge-digit))
+      (recur line digit)
+      new-line)))
+
 (defn smudge-line
-  "Smudges the given digits in a OCR line.  It does this by changing a random
-  pixel in each digit into an `x`.  This is actually an invalid input, but
-  eliminates the problem of accidentally generating a different digit."
+  "Smudges the given digits in a OCR line."
   [line digits-to-smudge]
-  (let [smudge-digit (fn [line n]
-                       (let [row (int (rand 3))
-                             col (+ (* 3 n) (int (rand 3)))]
-                         (update-in line [row]
-                                    (fn [pixel-row]
-                                      (str (.substring pixel-row 0 col)
-                                           \x
-                                           (.substring pixel-row (inc col)))))))]
-    (reduce smudge-digit line digits-to-smudge)))
+  (reduce smudge-digit line digits-to-smudge))
 
 (def smudged-digits-properties
   "Verifies that a smudged line is read appropriately.  In particular, that the
