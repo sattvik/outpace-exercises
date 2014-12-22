@@ -186,18 +186,24 @@
   [line digits-to-smudge]
   (reduce smudge-digit line digits-to-smudge))
 
+(def smudged-line-generator
+  "Creates a smudged OCR line and the result that is expected to be result from
+  reading the line."
+  (gen/fmap (fn [[some-digits digits-to-smudge]]
+              [(smudge-line (digits->line some-digits) digits-to-smudge)
+               (reduce (fn [digits n]
+                         (assoc digits n \?))
+                       some-digits
+                       digits-to-smudge)])
+            (gen/tuple (gen/vector (gen/choose 0 9) 9)
+                       smudged-digits-chooser)))
+
 (def smudged-digits-properties
   "Verifies that a smudged line is read appropriately.  In particular, that the
   correct digits are read as smudged and that the result is considered
   illegible."
-  (prop/for-all [digits (gen/vector (gen/choose 0 9) 9)
-                 to-smudge smudged-digits-chooser]
-    (let [smudged-line (smudge-line (digits->line digits) to-smudge)
-          expected     (reduce (fn [digits n]
-                                 (assoc digits n \?))
-                               digits
-                               to-smudge)
-          actual (line->digits smudged-line)]
+  (prop/for-all [[smudged-line expected] smudged-line-generator]
+    (let [actual (line->digits smudged-line)]
       (and (= expected actual)
            (not (legible? actual))))))
 
