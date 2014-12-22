@@ -11,7 +11,7 @@
   [lines]
   (let [[should-be-data should-be-empty] (split-at 3 lines)]
     (and (every? string? lines)
-         (every? (fn [^String s] (= 27 (.length s))) should-be-data)
+         (every? #(re-matches #"[_| ]{27}" %) should-be-data)
          (.isEmpty (first should-be-empty)))))
 
 (defn process
