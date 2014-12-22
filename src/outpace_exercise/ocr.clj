@@ -3,7 +3,7 @@
 (defn pixels->digit
   "Converts a sequence of nine 'pixels' into a digit."
   [pixels]
-  (condp = pixels
+  (case pixels
     " _ | ||_|" 0
     "     |  |" 1
     " _  _||_ " 2
@@ -13,7 +13,8 @@
     " _ |_ |_|" 6
     " _   |  |" 7
     " _ |_||_|" 8
-    " _ |_| _|" 9))
+    " _ |_| _|" 9
+    \?))
 
 (defn line->digits
   "Converts a line of 'pixelated' OCR digits into a vector of digits."
@@ -29,3 +30,8 @@
        (map (fn [pixels] (apply str pixels)))
        ; convert the string into a digit
        (map pixels->digit)))
+
+(defn legible?
+  "Returns true if the line read was completely legible."
+  [digits]
+  (every? number? digits))

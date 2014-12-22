@@ -51,7 +51,7 @@
     (is (= 9 (pixels->digit nine)))))
 
 (deftest test-line->digits
-  (testing "story lines"
+  (testing "story 1 lines"
     (is (= [0 0 0 0 0 0 0 0 0]
            (line->digits [" _  _  _  _  _  _  _  _  _ "
                           "| || || || || || || || || |"
@@ -106,7 +106,28 @@
            (line->digits ["    _  _     _  _  _  _  _ "
                           "  | _| _||_||_ |_   ||_||_|"
                           "  ||_  _|  | _||_|  ||_| _|"
-                          ""])))))
+                          ""]))))
+  (testing "story 3 lines"
+   (is (= [0 0 0 0 0 0 0 5 1]
+           (line->digits [" _  _  _  _  _  _  _  _    "
+                          "| || || || || || || ||_   |"
+                          "|_||_||_||_||_||_||_| _|  |"
+                          ""])))
+   (is (= [4 9 0 0 6 7 7 1 \?]
+           (line->digits ["    _  _  _  _  _  _     _ "
+                          "|_||_|| || ||_   |  |  | _ "
+                          "  | _||_||_||_|  |  |  | _|"
+                          ""])))
+   (is (= [1 2 3 4 \? 6 7 8 \?]
+          (line->digits ["    _  _     _  _  _  _  _ "
+                         "  | _| _||_| _ |_   ||_||_|"
+                         "  ||_  _|  | _||_|  ||_| _ "
+                         ""])))))
+
+(deftest test-legible?
+  (is (legible? [0 0 0 0 0 0 0 5 1]))
+  (is (not (legible? [4 9 0 0 6 7 7 1 \?])))
+  (is (not (legible? [1 2 3 4 \? 6 7 8 \?]))))
 
 (def line0 [" _ " "   " " _ " " _ " "   " " _ " " _ " " _ " " _ " " _ "])
 (def line1 ["| |" "  |" " _|" " _|" "|_|" "|_ " "|_ " "  |" "|_|" "|_|"])
@@ -126,8 +147,48 @@
 
 (def digits->line->digits
   "A property for round-tripping a sequence of digits to a line and back to a
-  sequence of digits."
+  sequence of digits.  Also verifies that the line was legible."
   (prop/for-all [digits digits-generator]
-    (= digits (line->digits (digits->line digits)))))
+    (and (= digits (line->digits (digits->line digits)))
+         (legible? digits))))
 
 (defspec generated-test-line->digits digits->line->digits)
+
+(def smudged-digits-chooser
+  "Chooses a random number of digits to smudge"
+  (gen/fmap (fn [[n digits]]
+              (take n digits))
+            (gen/tuple (gen/choose 1 9)
+                       (gen/shuffle [0 1 2 3 4 5 6 7 8]))))
+
+(defn smudge-line
+  "Smudges the given digits in a OCR line.  It does this by changing a random
+  pixel in each digit into an `x`.  This is actually an invalid input, but
+  eliminates the problem of accidentally generating a different digit."
+  [line digits-to-smudge]
+  (let [smudge-digit (fn [line n]
+                       (let [row (int (rand 3))
+                             col (+ (* 3 n) (int (rand 3)))]
+                         (update-in line [row]
+                                    (fn [pixel-row]
+                                      (str (.substring pixel-row 0 col)
+                                           \x
+                                           (.substring pixel-row (inc col)))))))]
+    (reduce smudge-digit line digits-to-smudge)))
+
+(def smudged-digits-properties
+  "Verifies that a smudged line is read appropriately.  In particular, that the
+  correct digits are read as smudged and that the result is considered
+  illegible."
+  (prop/for-all [digits (gen/vector (gen/choose 0 9) 9)
+                 to-smudge smudged-digits-chooser]
+    (let [smudged-line (smudge-line (digits->line digits) to-smudge)
+          expected     (reduce (fn [digits n]
+                                 (assoc digits n \?))
+                               digits
+                               to-smudge)
+          actual (line->digits smudged-line)]
+      (and (= expected actual)
+           (not (legible? actual))))))
+
+(defspec generated-smudged-line->digits smudged-digits-properties)
