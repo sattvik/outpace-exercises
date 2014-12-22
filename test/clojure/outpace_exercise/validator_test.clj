@@ -34,9 +34,15 @@
   (let [new-digit (- 11 (partial-checksum digits))]
     (conj digits new-digit)))
 
+(defn valid-digits?
+  "Predicate that ensures that all digits are valid."
+  [digits]
+  (every? #(<= 0 % 9) digits))
+
 (def good-digits-generator
   "Generates a vector of nine digits that should be valid"
-  (gen/fmap make-good-digits base-digits-generator))
+  (gen/such-that valid-digits?
+                 (gen/fmap make-good-digits base-digits-generator)))
 
 (def good-digits-validate-property
   "A property that ensures that valid checksums validate."
@@ -54,7 +60,8 @@
 
 (def bad-digits-generator
   "Generates a vector of nine digits that should be invalid"
-  (gen/fmap make-bad-digits base-digits-generator))
+  (gen/such-that valid-digits?
+                 (gen/fmap make-bad-digits base-digits-generator)))
 
 (def bad-digits-validate-property
   "A property that ensures that invalid checksums won't validate."
