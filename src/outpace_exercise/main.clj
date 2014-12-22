@@ -19,11 +19,14 @@
   "Process an individual line of OCR input.  Returns a variant of the form
   [status digits] where:
 
-  * status is one of :ok or :bad-checksum, and
+  * status is one of :ok, :illegible, or :bad-checksum, and
   * digits is a string representing the input that was read"
   [line]
   (let [digits (ocr/line->digits line)]
-    [(if (validator/valid-checksum? digits) :ok :bad-checksum)
+    [(cond
+       (not (ocr/legible? digits)) :illegible
+       (not (validator/valid-checksum? digits)) :bad-checksum
+       :default :ok)
      (apply str digits)]))
 
 (defn process
@@ -38,7 +41,8 @@
           (let [[status number] (process-line line)]
             (case status
               :ok (println number)
-              :bad-checksum (println number "ERR"))
+              :bad-checksum (println number "ERR")
+              :illegible (println number "ILL"))
             (recur (next lines)))
           (binding [*out* *err*]
             (println "Invalid input:")
