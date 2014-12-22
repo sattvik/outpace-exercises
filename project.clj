@@ -6,5 +6,7 @@
   :dependencies [[org.clojure/clojure "1.6.0"]]
   :main ^:skip-aot outpace-exercise.main
   :target-path "target/%s"
-  :profiles {:dev {:dependencies [[org.clojure/test.check "0.6.2"]]}
+  :profiles {:dev {:dependencies [[org.clojure/test.check "0.6.2"]]
+                   :source-paths ["test/clojure"]
+                   :resource-paths ["test/resources"]}
              :uberjar {:aot :all}})
